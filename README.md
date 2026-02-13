@@ -140,6 +140,5 @@ Các phát hiện chính từ quá trình phân tích dữ liệu:
 **LeQuyPhat**  
 *Data Analyst Portfolio*
 
-[Email](Lequyphat0123@gmail.com) • [Portfolio Website](https://lequyphat.wuaze.com/)
-
+[Email](mailto:Lequyphat0123@gmail.com) • [Portfolio Website](https://lequyphat.wuaze.com/)
 </div>
