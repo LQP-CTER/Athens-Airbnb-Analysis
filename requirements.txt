@@ -3,4 +3,8 @@ pandas
 numpy
 plotly
 scikit-learn
+<<<<<<< HEAD
 statsmodels
+=======
+statsmodels
+>>>>>>> 7f6ba0703e7fab4351c2e2fb2fcb2740a3b7dfbd

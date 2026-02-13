@@ -377,6 +377,7 @@ with tab4:
         submitted = st.form_submit_button("Dự đoán ngay")
         
         if submitted:
+            # Tạo DataFrame input với đúng tên cột như khi train
             input_data = pd.DataFrame({
                 'dist_to_center': [inp_dist],
                 'minimum_nights': [inp_min_nights],
@@ -388,11 +389,13 @@ with tab4:
                 'neighbourhood_encoded': [le_neigh.transform([inp_neigh])[0]]
             })
             
+            # Đảm bảo thứ tự cột đúng với feature list
             input_data = input_data[features]
             
             pred = model.predict(input_data)[0]
             st.success(f"💰 Mức giá khuyến nghị cho căn hộ này là: **€{pred:.2f}** / đêm")
 
+# --- FOOTER ---
 st.markdown("""
 <div class="footer">
     Developed with ❤️ by <b>Lê Quý Phát</b> (lequyphat) | © 2024 Athens Airbnb Analyst
