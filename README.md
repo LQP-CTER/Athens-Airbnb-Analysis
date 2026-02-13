@@ -16,78 +16,45 @@ Dự án này là một Dashboard tương tác được xây dựng bằng Pytho
 
 Mục tiêu chính:
 
-Hiểu thị trường: Cung cấp cái nhìn tổng quan về phân bố giá, vị trí và loại phòng.
+🎯 Hiểu thị trường: Cung cấp cái nhìn tổng quan về phân bố giá, vị trí và loại phòng.
 
-Phân tích chuyên sâu: Đánh giá tác động của vị trí (khoảng cách tới Acropolis), tiện nghi và cách đặt tên (NLP) đến giá thuê.
+🔍 Phân tích chuyên sâu: Đánh giá tác động của vị trí (khoảng cách tới Acropolis), tiện nghi và cách đặt tên (NLP) đến giá thuê.
 
-Dự báo giá (AI): Xây dựng công cụ định giá tự động giúp chủ nhà (Host) đưa ra mức giá cạnh tranh nhất.
+🤖 Dự báo giá (AI): Xây dựng công cụ định giá tự động giúp chủ nhà (Host) đưa ra mức giá cạnh tranh nhất.
 
 2. TÍNH NĂNG & PHÂN TÍCH
 
 Hệ thống Dashboard được chia thành 4 phân hệ chính:
 
-<table width="100%" border="0">
-<tr>
-<td width="50%" valign="top" style="border-right: 1px solid #ddd; padding-right: 10px;">
-<h3 align="center">I. TỔNG QUAN THỊ TRƯỜNG</h3>
-<p align="center"><i>(Market Overview)</i></p>
+I. TỔNG QUAN THỊ TRƯỜNG (Market Overview)
 
+KPIs Tracker: Theo dõi tổng số Listing, Giá trung bình (ADR), Tỷ lệ lấp đầy ước tính.
 
+Geospatial Analysis: Bản đồ tương tác hiển thị phân bổ giá và mật độ phòng trên nền bản đồ thực địa.
 
+Host Analysis: Phân tích thị phần của các Super Host.
 
+II. PHÂN TÍCH GIÁ CHUYÊN SÂU (Price Analysis)
 
-<ul>
-<li><b>KPIs Tracker:</b> Theo dõi tổng số Listing, Giá trung bình (ADR), Tỷ lệ lấp đầy ước tính.</li>
-<li><b>Geospatial Analysis:</b> Bản đồ tương tác hiển thị phân bổ giá và mật độ phòng trên nền bản đồ thực địa.</li>
-<li><b>Host Analysis:</b> Phân tích thị phần của các Super Host.</li>
-</ul>
-</td>
-<td width="50%" valign="top" style="padding-left: 10px;">
-<h3 align="center">II. PHÂN TÍCH GIÁ CHUYÊN SÂU</h3>
-<p align="center"><i>(Price Analysis)</i></p>
+Price Sensitivity: Biểu đồ hộp (Boxplot) phát hiện các giá trị ngoại lai (outliers) theo từng khu vực.
 
+Correlation Matrix: Ma trận tương quan nhiệt tìm biến số ảnh hưởng mạnh nhất đến giá.
 
+Distance Decay: Phân tích xu hướng giảm giá khi vị trí xa trung tâm (Acropolis).
 
+III. PHÂN TÍCH ĐỊA LÝ & NLP (Advanced Analytics)
 
+Treemap Visualization: Cấu trúc thị trường theo Quận/Huyện.
 
-<ul>
-<li><b>Price Sensitivity:</b> Biểu đồ hộp (Boxplot) phát hiện các giá trị ngoại lai (outliers) theo từng khu vực.</li>
-<li><b>Correlation Matrix:</b> Ma trận tương quan nhiệt tìm biến số ảnh hưởng mạnh nhất đến giá.</li>
-<li><b>Distance Decay:</b> Phân tích xu hướng giảm giá khi vị trí xa trung tâm (Acropolis).</li>
-</ul>
-</td>
-</tr>
-<tr><td colspan="2"><hr></td></tr>
-<tr>
-<td width="50%" valign="top" style="border-right: 1px solid #ddd; padding-right: 10px;">
-<h3 align="center">III. PHÂN TÍCH ĐỊA LÝ & NLP</h3>
-<p align="center"><i>(Advanced Analytics)</i></p>
+NLP (Natural Language Processing): Phân tích từ khóa trong tiêu đề. So sánh chiến lược từ khóa giữa phân khúc Cao cấp và Bình dân.
 
+IV. MACHINE LEARNING LAB (Predictive Modeling)
 
+Mô hình: Random Forest Regressor.
 
+Đánh giá: Hiển thị minh bạch chỉ số MAE, RMSE, R² Score và biểu đồ sai số (Residuals).
 
-
-<ul>
-<li><b>Treemap Visualization:</b> Cấu trúc thị trường theo Quận/Huyện.</li>
-<li><b>NLP (Natural Language Processing):</b> Phân tích từ khóa trong tiêu đề. So sánh chiến lược từ khóa giữa phân khúc Cao cấp và Bình dân.</li>
-</ul>
-</td>
-<td width="50%" valign="top" style="padding-left: 10px;">
-<h3 align="center">IV. MACHINE LEARNING LAB</h3>
-<p align="center"><i>(Predictive Modeling)</i></p>
-
-
-
-
-
-<ul>
-<li><b>Mô hình:</b> Random Forest Regressor.</li>
-<li><b>Đánh giá:</b> Hiển thị minh bạch chỉ số MAE, RMSE, R² Score và biểu đồ sai số (Residuals).</li>
-<li><b>Live Prediction:</b> Công cụ nhập thông số để AI gợi ý giá thuê ngay lập tức.</li>
-</ul>
-</td>
-</tr>
-</table>
+Live Prediction: Công cụ nhập thông số để AI gợi ý giá thuê ngay lập tức.
 
 3. CÔNG NGHỆ SỬ DỤNG
 
