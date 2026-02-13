@@ -398,6 +398,6 @@ with tab4:
 # --- FOOTER ---
 st.markdown("""
 <div class="footer">
-    Developed with ❤️ by <b>Lê Quý Phát</b> (lequyphat) | © 2024 Athens Airbnb Analyst
+    © 2026 Le Quy Phat (Titus Le) · Athens Airbnb Analysis
 </div>
 """, unsafe_allow_html=True)
