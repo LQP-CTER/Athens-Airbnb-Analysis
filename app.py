@@ -204,7 +204,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 👨‍💻 Author Profile")
     st.info("**Lê Quý Phát**\n\nData Scientist & Analyst")
-    st.markdown("© 2024 **lequyphat**. All rights reserved.")
+    st.markdown("© 2026 **lequyphat**. All rights reserved.")
 
 
 # Áp dụng bộ lọc
@@ -394,10 +394,3 @@ with tab4:
             
             pred = model.predict(input_data)[0]
             st.success(f"💰 Mức giá khuyến nghị cho căn hộ này là: **€{pred:.2f}** / đêm")
-
-# --- FOOTER ---
-st.markdown("""
-<div class="footer">
-    © 2026 Le Quy Phat (Titus Le) · Athens Airbnb Analysis
-</div>
-""", unsafe_allow_html=True)
