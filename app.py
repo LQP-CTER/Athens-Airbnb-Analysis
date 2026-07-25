@@ -211,11 +211,12 @@ st.markdown(f"""
         width: 100%;
         border-collapse: collapse;
         font-size: 12px;
+        margin-top: 10px;
     }}
     .ibcs-table th {{
         background: {PRIMARY_COLOR};
         color: #FFFFFF;
-        padding: 8px 10px;
+        padding: 8px 12px;
         text-align: left;
         font-weight: 600;
         letter-spacing: 0.06em;
@@ -223,7 +224,7 @@ st.markdown(f"""
         text-transform: uppercase;
     }}
     .ibcs-table td {{
-        padding: 8px 10px;
+        padding: 8px 12px;
         border-bottom: 1px solid #E2E8F0;
         font-family: 'DM Mono', monospace;
         font-size: 11px;
@@ -503,7 +504,7 @@ with tab1:
         "Khu vực Plaka, Koukaki và Syntagma mang lại doanh thu trung bình tháng cao nhất tại Athens (đạt từ 1.800,00 EUR - 2.500,00 EUR/tháng/căn hộ). Căn hộ cho thuê nguyên căn (Entire home/apt) chiếm 88% tổng doanh thu khai thác."
     )
 
-    # Row 1: KPI Grid (2 decimal places)
+    # Row 1: KPI Grid
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     avg_m_rev = filtered_df['est_monthly_revenue'].mean()
     occ_rate = filtered_df['occupancy_rate'].mean()
@@ -610,7 +611,6 @@ with tab2:
         med_price = neigh_matrix['price'].median()
         med_occ   = neigh_matrix['occupancy_rate'].median()
 
-        # Custom explicit hovertemplate with EXACTLY 2 decimal places!
         fig_matrix = px.scatter(
             neigh_matrix, x="price", y="occupancy_rate", size="est_monthly_revenue",
             color="est_monthly_revenue",
@@ -672,7 +672,7 @@ with tab2:
         st.plotly_chart(fig_dist_bar, use_container_width=True)
         st.markdown('<div class="footnote">Bán kính vàng <1km quanh Acropolis ghi nhận mức giá đêm cao nhất cả nước</div></div>', unsafe_allow_html=True)
 
-    # Row 2: Full Data Table
+    # Row 2: Clean Rendered HTML Data Table (Fixed Single-Line Markdown Issue!)
     st.markdown('<div class="section-header">BẢNG TỔNG HỢP CÁC CHỈ SỐ KINH DOANH KHU VỰC TẠI ATHENS</div>', unsafe_allow_html=True)
     summary_tb = filtered_df.groupby('neighbourhood').agg({
         'latitude': 'count',
@@ -680,34 +680,15 @@ with tab2:
         'occupancy_rate': 'mean',
         'est_monthly_revenue': 'mean'
     }).reset_index()
-    summary_tb.columns = ['Khu vực (Neighbourhood)', 'Số căn active', 'Giá TB (€/đêm)', 'Tỷ lệ lấp đầy (%)', 'Doanh thu TB (€/tháng)']
-    summary_tb = summary_tb.sort_values('Doanh thu TB (€/tháng)', ascending=False).head(12)
+    summary_tb.columns = ['Khu vực', 'Số căn active', 'Giá TB', 'Lấp đầy', 'Doanh thu TB']
+    summary_tb = summary_tb.sort_values('Doanh thu TB', ascending=False).head(12)
 
     rows = ""
     for _, row in summary_tb.iterrows():
-        rows += f"""
-        <tr>
-            <td><b>{row['Khu vực (Neighbourhood)']}</b></td>
-            <td>{int(row['Số căn active']):,}</td>
-            <td>€{row['Giá TB (€/đêm)']:.2f}</td>
-            <td>{row['Tỷ lệ lấp đầy (%)']:.2f}%</td>
-            <td style="color:{ACCENT_COLOR}; font-weight:700;">€{row['Doanh thu TB (€/tháng)']:.2f}</td>
-        </tr>
-        """
-    st.markdown(f"""
-    <table class="ibcs-table">
-        <thead>
-            <tr>
-                <th>Khu vực (Neighbourhood)</th>
-                <th>Số căn active</th>
-                <th>Giá TB (€/đêm)</th>
-                <th>Tỷ lệ lấp đầy (%)</th>
-                <th>Doanh thu TB (€/tháng) ▼</th>
-            </tr>
-        </thead>
-        <tbody>{rows}</tbody>
-    </table>
-    """, unsafe_allow_html=True)
+        rows += f"<tr><td><b>{row['Khu vực']}</b></td><td>{int(row['Số căn active']):,}</td><td>€{row['Giá TB']:.2f}</td><td>{row['Lấp đầy']:.2f}%</td><td style=\"color:{ACCENT_COLOR}; font-weight:700;\">€{row['Doanh thu TB']:.2f}</td></tr>"
+    
+    table_html = f'<table class="ibcs-table"><thead><tr><th>Khu vực (Neighbourhood)</th><th>Số căn active</th><th>Giá TB (€/đêm)</th><th>Tỷ lệ lấp đầy (%)</th><th>Doanh thu TB (€/tháng) ▼</th></tr></thead><tbody>{rows}</tbody></table>'
+    st.markdown(table_html, unsafe_allow_html=True)
 
 
 # ==================== TAB 3: MIN NIGHTS & HOST TYPE ====================
@@ -865,12 +846,8 @@ if not is_exec_mode:
                 rows = ""
                 for _, r in cluster_stats.iterrows():
                     rows += f"<tr><td>Cụm {r['Cụm']}</td><td>€{r['Giá TB (€)']:.2f}</td><td>{int(r['Số lượng'])}</td></tr>"
-                st.markdown(f"""
-                <table class="ibcs-table">
-                    <thead><tr><th>Nhóm</th><th>Giá TB</th><th>Số phòng</th></tr></thead>
-                    <tbody>{rows}</tbody>
-                </table>
-                """, unsafe_allow_html=True)
+                table_html = f'<table class="ibcs-table"><thead><tr><th>Nhóm</th><th>Giá TB</th><th>Số phòng</th></tr></thead><tbody>{rows}</tbody></table>'
+                st.markdown(table_html, unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="section-header">PHÂN TÍCH TẦN SUẤT TỪ KHÓA TÊN CĂN HỘ (NLP)</div>', unsafe_allow_html=True)
