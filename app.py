@@ -268,7 +268,7 @@ st.markdown(f"""
 # --- 3. HÀM XỬ LÝ DỮ LIỆU ---
 def haversine_distance(lat1, lon1, lat2, lon2):
     R = 6371 
-    phi1, phi2 = np.radians(lat1), np.radians(lon2)
+    phi1, phi2 = np.radians(lat1), np.radians(lat2)  # Fixed math bug: lat2
     dphi = np.radians(lat2 - lat1)
     dlambda = np.radians(lon2 - lon1)
     a = np.sin(dphi/2)**2 + np.cos(phi1)*np.cos(phi2)*np.sin(dlambda/2)**2
@@ -335,6 +335,14 @@ def load_and_clean_data():
         elif c <= 3: return 'Chủ nhà mở rộng (2-3 căn)'
         else: return 'Đơn vị kinh doanh (>3 căn)'
     df['host_type'] = df['calculated_host_listings_count'].apply(host_category)
+
+    # Categorize Distance Bins
+    def distance_bin(d):
+        if d < 1.0: return '< 1 km (Bán kính Vàng)'
+        elif d < 2.0: return '1 - 2 km (Cận Trung tâm)'
+        elif d < 3.5: return '2 - 3.5 km (Ngoại thành gần)'
+        else: return '> 3.5 km (Ngoại thành xa)'
+    df['dist_bin'] = df['dist_to_center'].apply(distance_bin)
 
     return df
 
@@ -530,12 +538,12 @@ with tab2:
 
     render_takeaway(
         "[HƯỚNG DẪN ĐỌC MA TRẬN ĐẦU TƯ 4 Ô VUÔNG]",
-        "Góc trên bên phải (Top-Right) đại diện cho các khu vực TIỀM NĂNG CAO (Giá đêm cao + Tỷ lệ lấp đầy cao). Góc trên bên trái (Top-Left) đại diện cho phân khúc BÌNH DÂN TỐC ĐỘ (Giá mềm + Tỷ lệ lấp đầy cao)."
+        "Góc trên bên phải (Top-Right) đại diện cho các khu vực TIỀM NĂNG CAO (Giá đêm cao + Tỷ lệ lấp đầy cao). Rê chuột vào các bóng tròn để xem chi tiết tên khu vực mà không bị rối mắt."
     )
 
     p1, p2 = st.columns([3, 2])
     with p1:
-        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Ma Trận Tiềm Năng Đầu Tư: Giá Đêm (ADR) vs Tỷ Lệ Lấp Đầy (%)</div><div class="ibcs-subtitle">Kích thước bóng = Doanh thu tháng ước tính &middot; Phân tích theo Khu vực</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Ma Trận Tiềm Năng Đầu Tư: Giá Đêm (ADR) vs Tỷ Lệ Lấp Đầy (%)</div><div class="ibcs-subtitle">Kích thước bóng = Doanh thu tháng ước tính &middot; Hover để xem tên khu vực</div>', unsafe_allow_html=True)
         
         neigh_matrix = filtered_df.groupby('neighbourhood').agg({
             'price': 'mean',
@@ -544,43 +552,67 @@ with tab2:
             'latitude': 'count'
         }).reset_index()
         neigh_matrix.columns = ['neighbourhood', 'price', 'occupancy_rate', 'est_monthly_revenue', 'count']
-        neigh_matrix = neigh_matrix[neigh_matrix['count'] >= 5]
+        neigh_matrix = neigh_matrix[neigh_matrix['count'] >= 3]
 
         med_price = neigh_matrix['price'].median()
         med_occ   = neigh_matrix['occupancy_rate'].median()
 
+        # Clean scatter without overlapping text labels!
         fig_matrix = px.scatter(
             neigh_matrix, x="price", y="occupancy_rate", size="est_monthly_revenue",
-            text="neighbourhood", color="est_monthly_revenue",
-            color_continuous_scale="Blues", size_max=35
+            hover_name="neighbourhood",
+            hover_data={"price": ":.1f EUR", "occupancy_rate": ":.1f%", "est_monthly_revenue": ":.0f EUR", "count": True},
+            color="est_monthly_revenue",
+            color_continuous_scale="Blues", size_max=32
         )
+        
+        # Quadrant divider lines
         fig_matrix.add_vline(x=med_price, line_dash="dash", line_color="#94A3B8", annotation_text="Trung vị Giá")
         fig_matrix.add_hline(y=med_occ, line_dash="dash", line_color="#94A3B8", annotation_text="Trung vị Lấp đầy")
         
-        fig_matrix.update_traces(textposition='top center')
+        # Annotate top key landmark markets cleanly
+        top_landmarks = ['EMPORIKO TRIGONO-PLAKA', 'KOUKAKI-MAKRYGIANNI', 'ZAPPEIO', 'AKROPOLI', 'KOLONAKI']
+        for _, row in neigh_matrix.iterrows():
+            if row['neighbourhood'] in top_landmarks:
+                fig_matrix.add_annotation(
+                    x=row['price'], y=row['occupancy_rate'],
+                    text=row['neighbourhood'],
+                    showarrow=True, arrowhead=1, arrowsize=0.8, arrowcolor="#0284C7",
+                    font=dict(size=9, color=PRIMARY_COLOR),
+                    bgcolor="rgba(255,255,255,0.85)", bordercolor="#0284C7", borderwidth=1
+                )
+
+        fig_matrix.update_coloraxes(showscale=False)  # Remove redundant colorbar overlay
         fig_matrix.update_layout(
-            margin=dict(l=0, r=0, t=0, b=0),
+            margin=dict(l=0, r=0, t=20, b=0),
             xaxis=dict(tickprefix="€", title="Giá Đêm Trung Bình (EUR/đêm)"),
             yaxis=dict(ticksuffix="%", title="Tỷ Lệ Lấp Đầy Ước Tính (%)"),
             showlegend=False
         )
         st.plotly_chart(fig_matrix, use_container_width=True)
-        st.markdown('<div class="footnote">Đường nét đứt chia mặt phẳng thành 4 phân vùng cơ hội đầu tư</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="footnote">Rê chuột vào các hình tròn để xem tên và số liệu chi tiết của từng khu vực</div></div>', unsafe_allow_html=True)
 
     with p2:
-        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Tương Quan Khoảng Cách Trung Tâm Acropolis</div><div class="ibcs-subtitle">Tác động của khoảng cách (km) tới giá đêm</div>', unsafe_allow_html=True)
-        fig_trend = px.scatter(
-            filtered_df, x="dist_to_center", y="price", opacity=0.35,
-            color_discrete_sequence=[PRIMARY_COLOR],
-            trendline="lowess", trendline_color_override=ACCENT_COLOR
+        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Giá Đêm Trung Bình Theo Bán Kính Khoảng Cách</div><div class="ibcs-subtitle">Tác động của bán kính khoảng cách tới Đền Acropolis</div>', unsafe_allow_html=True)
+        
+        dist_stats = filtered_df.groupby('dist_bin').agg({'price': 'mean', 'occupancy_rate': 'mean', 'latitude': 'count'}).reset_index()
+        dist_order = ['< 1 km (Bán kính Vàng)', '1 - 2 km (Cận Trung tâm)', '2 - 3.5 km (Ngoại thành gần)', '> 3.5 km (Ngoại thành xa)']
+        dist_stats['dist_bin'] = pd.Categorical(dist_stats['dist_bin'], categories=dist_order, ordered=True)
+        dist_stats = dist_stats.sort_values('dist_bin')
+
+        fig_dist_bar = px.bar(
+            dist_stats, x="price", y="dist_bin", orientation='h',
+            color="occupancy_rate", color_continuous_scale="Blues",
+            text_auto='.1f'
         )
-        fig_trend.update_layout(
+        fig_dist_bar.update_layout(
             margin=dict(l=0, r=0, t=0, b=0),
-            yaxis=dict(tickprefix="€"),
-            xaxis_title="Khoảng cách tới Acropolis (km)"
+            xaxis=dict(tickprefix="€", title="Giá Đêm Trung Bình (EUR)"),
+            yaxis_title="Phân vùng khoảng cách",
+            coloraxis_showscale=False
         )
-        st.plotly_chart(fig_trend, use_container_width=True)
-        st.markdown('<div class="footnote">Trong bán kính 2km từ Đền Acropolis, mức giá đạt đỉnh cao nhất</div></div>', unsafe_allow_html=True)
+        st.plotly_chart(fig_dist_bar, use_container_width=True)
+        st.markdown('<div class="footnote">Bán kính vàng <1km quanh Acropolis ghi nhận mức giá đêm cao nhất cả nước</div></div>', unsafe_allow_html=True)
 
 
 # ==================== TAB 3: MIN NIGHTS & HOST TYPE ====================
@@ -605,7 +637,8 @@ with tab3:
         fig_mn.update_layout(
             margin=dict(l=0, r=0, t=0, b=0),
             yaxis=dict(tickprefix="€", title="Giá Đêm Trung Bình (EUR)"),
-            xaxis_title="Phân loại chính sách đêm tối thiểu"
+            xaxis_title="Phân loại chính sách đêm tối thiểu",
+            coloraxis_showscale=False
         )
         st.plotly_chart(fig_mn, use_container_width=True)
         st.markdown('<div class="footnote">Màu đậm thể hiện tỷ lệ lấp đầy % trung bình cao hơn</div></div>', unsafe_allow_html=True)
@@ -623,7 +656,8 @@ with tab3:
         fig_host_cat.update_layout(
             margin=dict(l=0, r=0, t=0, b=0),
             yaxis_title="Số lượng căn hộ cho thuê",
-            xaxis_title="Phân loại Host"
+            xaxis_title="Phân loại Host",
+            coloraxis_showscale=False
         )
         st.plotly_chart(fig_host_cat, use_container_width=True)
         st.markdown('<div class="footnote">Các đơn vị kinh doanh chuyên nghiệp sở hữu mức giá niêm yết tối ưu hơn</div></div>', unsafe_allow_html=True)
