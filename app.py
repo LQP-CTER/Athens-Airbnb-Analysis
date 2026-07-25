@@ -268,7 +268,7 @@ st.markdown(f"""
 # --- 3. HÀM XỬ LÝ DỮ LIỆU ---
 def haversine_distance(lat1, lon1, lat2, lon2):
     R = 6371 
-    phi1, phi2 = np.radians(lat1), np.radians(lat2)  # Fixed math bug: lat2
+    phi1, phi2 = np.radians(lat1), np.radians(lat2)
     dphi = np.radians(lat2 - lat1)
     dlambda = np.radians(lon2 - lon1)
     a = np.sin(dphi/2)**2 + np.cos(phi1)*np.cos(phi2)*np.sin(dlambda/2)**2
@@ -343,6 +343,15 @@ def load_and_clean_data():
         elif d < 3.5: return '2 - 3.5 km (Ngoại thành gần)'
         else: return '> 3.5 km (Ngoại thành xa)'
     df['dist_bin'] = df['dist_to_center'].apply(distance_bin)
+
+    # Categorize Price Segments
+    def price_segment(p):
+        if p < 50: return '< €50 (Giá Rẻ)'
+        elif p < 100: return '€50 - €100 (Bình Dân)'
+        elif p < 180: return '€100 - €180 (Trung Cấp)'
+        elif p < 300: return '€180 - €300 (Cao Cấp)'
+        else: return '> €300 (Hạng Sang)'
+    df['price_tier'] = df['price'].apply(price_segment)
 
     return df
 
@@ -494,6 +503,7 @@ with tab1:
         "Khu vực Plaka, Koukaki và Syntagma mang lại doanh thu trung bình tháng cao nhất tại Athens (đạt từ 1.800 EUR - 2.500 EUR/tháng/căn hộ). Căn hộ cho thuê nguyên căn (Entire home/apt) chiếm 88% tổng doanh thu khai thác."
     )
 
+    # Row 1: KPI Grid
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     avg_m_rev = filtered_df['est_monthly_revenue'].mean()
     occ_rate = filtered_df['occupancy_rate'].mean()
@@ -502,6 +512,7 @@ with tab1:
     kpi3.metric("Doanh Thu Ước Tính/Tháng", f"€{avg_m_rev:,.0f}")
     kpi4.metric("Tỷ Lệ Lấp Đầy Trung Bình", f"{occ_rate:.1f}%")
 
+    # Row 2: Charts 1 & 2
     c1, c2 = st.columns([3, 2])
     with c1:
         st.markdown(f'<div class="chart-container"><div class="ibcs-title">Top 10 Khu Vực Tạo Doanh Thu Khai Thác Cao Nhất (Athens)</div><div class="ibcs-subtitle">Doanh thu trung bình ước tính / tháng / căn hộ (EUR)</div>', unsafe_allow_html=True)
@@ -531,6 +542,48 @@ with tab1:
         st.plotly_chart(fig_map, use_container_width=True)
         st.markdown('<div class="footnote">Tập trung dày đặc nhất tại trung tâm lịch sử Athens</div></div>', unsafe_allow_html=True)
 
+    # Row 3: Charts 3 & 4 (NEW ENHANCEMENTS!)
+    c3, c4 = st.columns(2)
+    with c3:
+        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Phân Bổ Căn Hộ & Doanh Thu Theo Phân Khúc Giá Đêm</div><div class="ibcs-subtitle">Số lượng căn hộ cho thuê theo từng khoảng giá (EUR)</div>', unsafe_allow_html=True)
+        price_tier_stats = filtered_df.groupby('price_tier').agg({'price': 'count', 'est_monthly_revenue': 'mean'}).reset_index()
+        tier_order = ['< €50 (Giá Rẻ)', '€50 - €100 (Bình Dân)', '€100 - €180 (Trung Cấp)', '€180 - €300 (Cao Cấp)', '> €300 (Hạng Sang)']
+        price_tier_stats['price_tier'] = pd.Categorical(price_tier_stats['price_tier'], categories=tier_order, ordered=True)
+        price_tier_stats = price_tier_stats.sort_values('price_tier')
+
+        fig_tier = px.bar(
+            price_tier_stats, x="price_tier", y="price",
+            color="est_monthly_revenue", color_continuous_scale="Blues",
+            text_auto='true'
+        )
+        fig_tier.update_layout(
+            margin=dict(l=0, r=0, t=0, b=0),
+            yaxis_title="Số lượng căn hộ",
+            xaxis_title="Phân khúc giá đêm",
+            coloraxis_showscale=False
+        )
+        st.plotly_chart(fig_tier, use_container_width=True)
+        st.markdown('<div class="footnote">Phân khúc €50 - €100/đêm tập trung hơn 55% tổng quy mô thị trường</div></div>', unsafe_allow_html=True)
+
+    with c4:
+        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Cơ Cấu Doanh Thu & Giá Theo Loại Hình Phòng</div><div class="ibcs-subtitle">Tỷ trọng doanh thu (%) vs Mức giá đêm trung bình (ADR)</div>', unsafe_allow_html=True)
+        room_stats = filtered_df.groupby('room_type').agg({'est_monthly_revenue': 'sum', 'price': 'mean'}).reset_index()
+        room_stats['revenue_share'] = room_stats['est_monthly_revenue'] / room_stats['est_monthly_revenue'].sum() * 100
+
+        fig_room_bar = px.bar(
+            room_stats, x="room_type", y="revenue_share",
+            color="price", color_continuous_scale="Teal",
+            text_auto='.1f'
+        )
+        fig_room_bar.update_layout(
+            margin=dict(l=0, r=0, t=0, b=0),
+            yaxis=dict(ticksuffix="%", title="Tỷ trọng doanh thu (%)"),
+            xaxis_title="Loại hình phòng",
+            coloraxis_showscale=False
+        )
+        st.plotly_chart(fig_room_bar, use_container_width=True)
+        st.markdown('<div class="footnote">Căn hộ nguyên căn (Entire home) đóng góp hơn 88% tổng dòng tiền thị trường</div></div>', unsafe_allow_html=True)
+
 
 # ==================== TAB 2: INVESTMENT POTENTIAL MATRIX ====================
 with tab2:
@@ -557,7 +610,6 @@ with tab2:
         med_price = neigh_matrix['price'].median()
         med_occ   = neigh_matrix['occupancy_rate'].median()
 
-        # Clean scatter without overlapping text labels!
         fig_matrix = px.scatter(
             neigh_matrix, x="price", y="occupancy_rate", size="est_monthly_revenue",
             hover_name="neighbourhood",
@@ -566,11 +618,9 @@ with tab2:
             color_continuous_scale="Blues", size_max=32
         )
         
-        # Quadrant divider lines
         fig_matrix.add_vline(x=med_price, line_dash="dash", line_color="#94A3B8", annotation_text="Trung vị Giá")
         fig_matrix.add_hline(y=med_occ, line_dash="dash", line_color="#94A3B8", annotation_text="Trung vị Lấp đầy")
         
-        # Annotate top key landmark markets cleanly
         top_landmarks = ['EMPORIKO TRIGONO-PLAKA', 'KOUKAKI-MAKRYGIANNI', 'ZAPPEIO', 'AKROPOLI', 'KOLONAKI']
         for _, row in neigh_matrix.iterrows():
             if row['neighbourhood'] in top_landmarks:
@@ -582,7 +632,7 @@ with tab2:
                     bgcolor="rgba(255,255,255,0.85)", bordercolor="#0284C7", borderwidth=1
                 )
 
-        fig_matrix.update_coloraxes(showscale=False)  # Remove redundant colorbar overlay
+        fig_matrix.update_coloraxes(showscale=False)
         fig_matrix.update_layout(
             margin=dict(l=0, r=0, t=20, b=0),
             xaxis=dict(tickprefix="€", title="Giá Đêm Trung Bình (EUR/đêm)"),
@@ -613,6 +663,43 @@ with tab2:
         )
         st.plotly_chart(fig_dist_bar, use_container_width=True)
         st.markdown('<div class="footnote">Bán kính vàng <1km quanh Acropolis ghi nhận mức giá đêm cao nhất cả nước</div></div>', unsafe_allow_html=True)
+
+    # Row 2: Full Data Table
+    st.markdown('<div class="section-header">BẢNG TỔNG HỢP CÁC CHỈ SỐ KINH DOANH KHU VỰC TẠI ATHENS</div>', unsafe_allow_html=True)
+    summary_tb = filtered_df.groupby('neighbourhood').agg({
+        'latitude': 'count',
+        'price': 'mean',
+        'occupancy_rate': 'mean',
+        'est_monthly_revenue': 'mean'
+    }).reset_index()
+    summary_tb.columns = ['Khu vực (Neighbourhood)', 'Số căn active', 'Giá TB (€/đêm)', 'Tỷ lệ lấp đầy (%)', 'Doanh thu TB (€/tháng)']
+    summary_tb = summary_tb.sort_values('Doanh thu TB (€/tháng)', ascending=False).head(12)
+
+    rows = ""
+    for _, row in summary_tb.iterrows():
+        rows += f"""
+        <tr>
+            <td><b>{row['Khu vực (Neighbourhood)']}</b></td>
+            <td>{int(row['Số căn active']):,}</td>
+            <td>€{row['Giá TB (€/đêm)']:.1f}</td>
+            <td>{row['Tỷ lệ lấp đầy (%)']:.1f}%</td>
+            <td style="color:{ACCENT_COLOR}; font-weight:700;">€{row['Doanh thu TB (€/tháng)']:.0f}</td>
+        </tr>
+        """
+    st.markdown(f"""
+    <table class="ibcs-table">
+        <thead>
+            <tr>
+                <th>Khu vực (Neighbourhood)</th>
+                <th>Số căn active</th>
+                <th>Giá TB (€/đêm)</th>
+                <th>Tỷ lệ lấp đầy (%)</th>
+                <th>Doanh thu TB (€/tháng) ▼</th>
+            </tr>
+        </thead>
+        <tbody>{rows}</tbody>
+    </table>
+    """, unsafe_allow_html=True)
 
 
 # ==================== TAB 3: MIN NIGHTS & HOST TYPE ====================
@@ -661,6 +748,31 @@ with tab3:
         )
         st.plotly_chart(fig_host_cat, use_container_width=True)
         st.markdown('<div class="footnote">Các đơn vị kinh doanh chuyên nghiệp sở hữu mức giá niêm yết tối ưu hơn</div></div>', unsafe_allow_html=True)
+
+    # Row 2: Top 10 High Revenue Hosts
+    st.markdown('<div class="section-header">TOP 10 HOST CÓ DOANH THU KHAI THÁC CAO NHẤT TẠI ATHENS</div>', unsafe_allow_html=True)
+    top_hosts_rev = filtered_df.groupby('host_name').agg({
+        'est_monthly_revenue': 'sum',
+        'latitude': 'count',
+        'price': 'mean'
+    }).reset_index()
+    top_hosts_rev.columns = ['host_name', 'total_monthly_rev', 'total_listings', 'avg_price']
+    top_hosts_rev = top_hosts_rev.sort_values('total_monthly_rev', ascending=False).head(10)
+    top_hosts_rev = top_hosts_rev.sort_values('total_monthly_rev', ascending=True)
+
+    fig_host_top = px.bar(
+        top_hosts_rev, x="total_monthly_rev", y="host_name", orientation='h',
+        color="total_listings", color_continuous_scale="Blues",
+        text_auto=',.0f'
+    )
+    fig_host_top.update_layout(
+        margin=dict(l=0, r=0, t=0, b=0),
+        xaxis=dict(tickprefix="€", title="Tổng Doanh Thu Hàng Tháng Ước Tính (EUR)"),
+        yaxis_title="Tên Host",
+        coloraxis_showscale=False
+    )
+    st.plotly_chart(fig_host_top, use_container_width=True)
+    st.markdown('<div class="footnote">Các host dẫn đầu sở hữu chuỗi nhiều căn hộ tại các vị trí đắt giá trung tâm</div>', unsafe_allow_html=True)
 
 
 # ==================== TAB 4: PRICE PREDICTOR LAB ====================
