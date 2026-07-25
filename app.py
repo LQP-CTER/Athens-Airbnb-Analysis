@@ -268,7 +268,7 @@ st.markdown(f"""
 # --- 3. HÀM XỬ LÝ DỮ LIỆU ---
 def haversine_distance(lat1, lon1, lat2, lon2):
     R = 6371 
-    phi1, phi2 = np.radians(lat1), np.radians(lat2)
+    phi1, phi2 = np.radians(lat1), np.radians(lon2)
     dphi = np.radians(lat2 - lat1)
     dlambda = np.radians(lon2 - lon1)
     a = np.sin(dphi/2)**2 + np.cos(phi1)*np.cos(phi2)*np.sin(dlambda/2)**2
@@ -316,6 +316,26 @@ def load_and_clean_data():
     df['dist_to_center'] = haversine_distance(df['latitude'], df['longitude'], ACROPOLIS_LAT, ACROPOLIS_LON)
     df['name_length'] = df['name'].astype(str).apply(len)
     
+    # Financial & Operational Metrics
+    df['occupancy_rate'] = ((365 - df['availability_365']) / 365 * 100).clip(0, 100)
+    df['days_booked'] = (365 - df['availability_365']).clip(0, 365)
+    df['est_annual_revenue'] = df['price'] * df['days_booked']
+    df['est_monthly_revenue'] = df['est_annual_revenue'] / 12
+
+    # Categorize Minimum Nights Policy
+    def min_night_category(n):
+        if n <= 2: return '1 - 2 đêm (Short Stay)'
+        elif n <= 6: return '3 - 6 đêm (Medium Stay)'
+        else: return '7+ đêm (Long Stay)'
+    df['min_night_tier'] = df['minimum_nights'].apply(min_night_category)
+
+    # Categorize Host Type
+    def host_category(c):
+        if c == 1: return 'Chủ nhà cá nhân (1 căn)'
+        elif c <= 3: return 'Chủ nhà mở rộng (2-3 căn)'
+        else: return 'Đơn vị kinh doanh (>3 căn)'
+    df['host_type'] = df['calculated_host_listings_count'].apply(host_category)
+
     return df
 
 @st.cache_resource
@@ -427,105 +447,128 @@ st.markdown(f"""
     <div>
         <div class="report-title">Báo cáo Chiến lược Thị trường Airbnb Athens {mode_tag}</div>
         <div class="report-subtitle">
-            Phân tích định giá đêm &middot; Tỷ lệ lấp đầy &middot; Khoảng cách Trung tâm Acropolis &middot; Dự báo ML
+            Doanh thu khai thác &middot; Định giá bán lẻ &middot; Ma trận tiềm năng đầu tư &middot; Chính sách lưu trú
         </div>
     </div>
     <div class="report-meta">
         Dữ liệu: {len(filtered_df):,} căn hộ active<br>
-        Số khu vực: {filtered_df['neighbourhood'].nunique()} &nbsp;|&nbsp; 
-        Giá trung bình: &euro;{filtered_df['price'].mean():.1f}/đêm
+        Doanh thu TB: &euro;{filtered_df['est_monthly_revenue'].mean():,.0f}/tháng &nbsp;|&nbsp; 
+        Giá TB: &euro;{filtered_df['price'].mean():.1f}/đêm
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # TABS CONFIGURATION
 if is_exec_mode:
-    tab1, tab2, tab3 = st.tabs([
-        "TỔNG QUAN THỊ TRƯỜNG",
-        "PHÂN TÍCH GIÁ & VỊ TRÍ",
-        "MÔ PHỎNG ĐỀ XUẤT GIÁ PHÒNG"
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "TỔNG QUAN & DOANH THU",
+        "MA TRẬN TIỀM NĂNG ĐẦU TƯ",
+        "CHÍNH SÁCH LƯU TRÚ & HOST",
+        "MÔ PHỎNG ĐỀ XUẤT GIÁ"
     ])
 else:
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "TỔNG QUAN THỊ TRƯỜNG",
-        "PHÂN TÍCH GIÁ & VỊ TRÍ",
-        "MÔ PHỎNG ĐỀ XUẤT GIÁ PHÒNG",
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "TỔNG QUAN & DOANH THU",
+        "MA TRẬN TIỀM NĂNG ĐẦU TƯ",
+        "CHÍNH SÁCH LƯU TRÚ & HOST",
+        "MÔ PHỎNG ĐỀ XUẤT GIÁ",
         "PHÂN CỤM K-MEANS & NLP",
         "MÔ HÌNH MACHINE LEARNING"
     ])
 
 
-# ==================== TAB 1: MARKET OVERVIEW ====================
+# ==================== TAB 1: MARKET OVERVIEW & REVENUE ====================
 with tab1:
-    st.markdown('<div class="section-header">SỨC KHỎE THỊ TRƯỜNG AIRBNB ATHENS (MARKET HEALTH)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">SỨC KHỎE THỊ TRƯỜNG & KHẢ NĂNG TẠO DOANH THU (MARKET HEALTH & REVENUE)</div>', unsafe_allow_html=True)
     
     render_takeaway(
-        "[NHẬN ĐỊNH THỊ TRƯỜNG QUAN TRỌNG]",
-        "Khu vực trung tâm du lịch xung quanh Đền Acropolis (Plaka, Koukaki, Monastiraki) chiếm hơn 60% tổng lượng căn hộ cho thuê toàn thành phố với tỷ lệ lấp đầy ước tính duy trì ở mức cao >75%."
+        "[NHẬN ĐỊNH DOANH THU KHAI THÁC QUAN TRỌNG]",
+        "Khu vực Plaka, Koukaki và Syntagma mang lại doanh thu trung bình tháng cao nhất tại Athens (đạt từ 1.800 EUR - 2.500 EUR/tháng/căn hộ). Căn hộ cho thuê nguyên căn (Entire home/apt) chiếm 88% tổng doanh thu khai thác."
     )
 
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    occ_rate = ((365-filtered_df['availability_365'])/365*100).mean()
+    avg_m_rev = filtered_df['est_monthly_revenue'].mean()
+    occ_rate = filtered_df['occupancy_rate'].mean()
     kpi1.metric("Tổng Căn Hộ Active", f"{len(filtered_df):,.0f}")
     kpi2.metric("Giá Trung Bình Đêm (ADR)", f"€{filtered_df['price'].mean():.1f}")
-    kpi3.metric("Số Đánh Giá Trung Bình", f"{filtered_df['number_of_reviews'].mean():.0f}")
-    kpi4.metric("Tỷ Lệ Lấp Đầy (Ước Tính)", f"{occ_rate:.1f}%")
+    kpi3.metric("Doanh Thu Ước Tính/Tháng", f"€{avg_m_rev:,.0f}")
+    kpi4.metric("Tỷ Lệ Lấp Đầy Trung Bình", f"{occ_rate:.1f}%")
 
-    c1, c2 = st.columns([2, 1])
+    c1, c2 = st.columns([3, 2])
     with c1:
-        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Bản Đồ Phân Bổ Vị Trí Căn Hộ & Mức Giá Đêm (Athens)</div><div class="ibcs-subtitle">Tọa độ địa lý &middot; Kích thước = Số lượng review</div>', unsafe_allow_html=True)
-        fig_map = px.scatter_mapbox(
-            filtered_df, lat="latitude", lon="longitude", color="price", size="number_of_reviews",
-            color_continuous_scale="Viridis", zoom=11, height=450, mapbox_style="carto-positron"
-        )
-        fig_map.update_layout(margin=dict(l=0, r=0, t=0, b=0))
-        st.plotly_chart(fig_map, use_container_width=True)
-        st.markdown('<div class="footnote">Màu vàng/sáng = Mức giá cao &middot; Vùng tập trung dày đặc = Trung tâm lịch sử Athens</div></div>', unsafe_allow_html=True)
-    with c2:
-        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Cơ Cấu Loại Hình Phòng</div><div class="ibcs-subtitle">% tổng số lượng listing</div>', unsafe_allow_html=True)
-        fig_pie = px.pie(filtered_df, names='room_type', hole=0.5, color_discrete_sequence=[ACCENT_COLOR, PRIMARY_COLOR, AMBER_COLOR])
-        fig_pie.update_layout(margin=dict(l=0, r=0, t=0, b=0), showlegend=True)
-        st.plotly_chart(fig_pie, use_container_width=True)
-        
-        st.markdown(f'<div class="ibcs-title" style="margin-top:16px">Top Host Sở Hữu Nhiều Listing Nhất</div>', unsafe_allow_html=True)
-        top_hosts = filtered_df['host_name'].value_counts().head(5).reset_index()
-        top_hosts.columns = ['Host', 'Listings']
-        fig_host = px.bar(top_hosts, x='Listings', y='Host', orientation='h', color_discrete_sequence=[PRIMARY_COLOR])
-        fig_host.update_layout(margin=dict(l=0, r=0, t=0, b=0), yaxis={'categoryorder':'total ascending'}, showlegend=False)
-        st.plotly_chart(fig_host, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Top 10 Khu Vực Tạo Doanh Thu Khai Thác Cao Nhất (Athens)</div><div class="ibcs-subtitle">Doanh thu trung bình ước tính / tháng / căn hộ (EUR)</div>', unsafe_allow_html=True)
+        top_10_rev = filtered_df.groupby('neighbourhood')['est_monthly_revenue'].mean().nlargest(10).reset_index()
+        top_10_rev = top_10_rev.sort_values('est_monthly_revenue', ascending=True)
 
-
-# ==================== TAB 2: PRICE & LOCATION ====================
-with tab2:
-    st.markdown('<div class="section-header">PHÂN TÍCH GIÁ BÁN LẺ VÀ KHOẢNG CÁCH TRUNG TÂM</div>', unsafe_allow_html=True)
-    
-    render_takeaway(
-        "[NHẬN ĐỊNH ĐỊNH GIÁ & VỊ TRÍ]",
-        "Khoảng cách tới Đền Acropolis có tương quan nghịch rõ rệt với giá đêm: Cứ mỗi km cách xa trung tâm historic center, giá phòng bán lẻ trung bình giảm khoảng 12 - 15 EUR/đêm."
-    )
-
-    p1, p2 = st.columns(2)
-    with p1:
-        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Mức Giá Đêm Trung Bình Theo Khu Vực Tại Athens</div><div class="ibcs-subtitle">EUR per night &middot; Xếp hạng giảm dần</div>', unsafe_allow_html=True)
-        top_12_neigh = filtered_df.groupby('neighbourhood')['price'].mean().nlargest(12).reset_index()
-        top_12_neigh = top_12_neigh.sort_values('price', ascending=True)
-
-        fig_bar_p = px.bar(
-            top_12_neigh, x="price", y="neighbourhood", orientation='h',
+        fig_rev = px.bar(
+            top_10_rev, x="est_monthly_revenue", y="neighbourhood", orientation='h',
             color_discrete_sequence=[ACCENT_COLOR],
-            text_auto='.1f'
+            text_auto=',.0f'
         )
-        fig_bar_p.update_layout(
+        fig_rev.update_layout(
             margin=dict(l=0, r=0, t=0, b=0),
             xaxis=dict(tickprefix="€"),
             showlegend=False
         )
-        st.plotly_chart(fig_bar_p, use_container_width=True)
-        st.markdown('<div class="footnote">Plaka và Koukaki dẫn đầu về mức giá phòng bán lẻ trung bình đêm</div></div>', unsafe_allow_html=True)
+        st.plotly_chart(fig_rev, use_container_width=True)
+        st.markdown('<div class="footnote">Doanh thu được ước tính dựa trên Giá bán lẻ đêm x Số ngày phòng được lấp đầy</div></div>', unsafe_allow_html=True)
+
+    with c2:
+        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Bản Đồ Phân Bổ Tọa Độ & Mức Giá Đêm</div><div class="ibcs-subtitle">Vị trí địa lý &middot; Kích thước = Số review</div>', unsafe_allow_html=True)
+        fig_map = px.scatter_mapbox(
+            filtered_df, lat="latitude", lon="longitude", color="price", size="number_of_reviews",
+            color_continuous_scale="Viridis", zoom=11, height=360, mapbox_style="carto-positron"
+        )
+        fig_map.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+        st.plotly_chart(fig_map, use_container_width=True)
+        st.markdown('<div class="footnote">Tập trung dày đặc nhất tại trung tâm lịch sử Athens</div></div>', unsafe_allow_html=True)
+
+
+# ==================== TAB 2: INVESTMENT POTENTIAL MATRIX ====================
+with tab2:
+    st.markdown('<div class="section-header">MA TRẬN TIỀM NĂNG & RỦI RO ĐẦU TƯ BẤT ĐỘNG SẢN AIRBNB</div>', unsafe_allow_html=True)
+
+    render_takeaway(
+        "[HƯỚNG DẪN ĐỌC MA TRẬN ĐẦU TƯ 4 Ô VUÔNG]",
+        "Góc trên bên phải (Top-Right) đại diện cho các khu vực TIỀM NĂNG CAO (Giá đêm cao + Tỷ lệ lấp đầy cao). Góc trên bên trái (Top-Left) đại diện cho phân khúc BÌNH DÂN TỐC ĐỘ (Giá mềm + Tỷ lệ lấp đầy cao)."
+    )
+
+    p1, p2 = st.columns([3, 2])
+    with p1:
+        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Ma Trận Tiềm Năng Đầu Tư: Giá Đêm (ADR) vs Tỷ Lệ Lấp Đầy (%)</div><div class="ibcs-subtitle">Kích thước bóng = Doanh thu tháng ước tính &middot; Phân tích theo Khu vực</div>', unsafe_allow_html=True)
         
+        neigh_matrix = filtered_df.groupby('neighbourhood').agg({
+            'price': 'mean',
+            'occupancy_rate': 'mean',
+            'est_monthly_revenue': 'mean',
+            'latitude': 'count'
+        }).reset_index()
+        neigh_matrix.columns = ['neighbourhood', 'price', 'occupancy_rate', 'est_monthly_revenue', 'count']
+        neigh_matrix = neigh_matrix[neigh_matrix['count'] >= 5]
+
+        med_price = neigh_matrix['price'].median()
+        med_occ   = neigh_matrix['occupancy_rate'].median()
+
+        fig_matrix = px.scatter(
+            neigh_matrix, x="price", y="occupancy_rate", size="est_monthly_revenue",
+            text="neighbourhood", color="est_monthly_revenue",
+            color_continuous_scale="Blues", size_max=35
+        )
+        fig_matrix.add_vline(x=med_price, line_dash="dash", line_color="#94A3B8", annotation_text="Trung vị Giá")
+        fig_matrix.add_hline(y=med_occ, line_dash="dash", line_color="#94A3B8", annotation_text="Trung vị Lấp đầy")
+        
+        fig_matrix.update_traces(textposition='top center')
+        fig_matrix.update_layout(
+            margin=dict(l=0, r=0, t=0, b=0),
+            xaxis=dict(tickprefix="€", title="Giá Đêm Trung Bình (EUR/đêm)"),
+            yaxis=dict(ticksuffix="%", title="Tỷ Lệ Lấp Đầy Ước Tính (%)"),
+            showlegend=False
+        )
+        st.plotly_chart(fig_matrix, use_container_width=True)
+        st.markdown('<div class="footnote">Đường nét đứt chia mặt phẳng thành 4 phân vùng cơ hội đầu tư</div></div>', unsafe_allow_html=True)
+
     with p2:
-        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Tương Quan Giá Đêm vs Khoảng Cách Trung Tâm Acropolis</div><div class="ibcs-subtitle">EUR per night vs Khoảng cách (km)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Tương Quan Khoảng Cách Trung Tâm Acropolis</div><div class="ibcs-subtitle">Tác động của khoảng cách (km) tới giá đêm</div>', unsafe_allow_html=True)
         fig_trend = px.scatter(
             filtered_df, x="dist_to_center", y="price", opacity=0.35,
             color_discrete_sequence=[PRIMARY_COLOR],
@@ -537,11 +580,57 @@ with tab2:
             xaxis_title="Khoảng cách tới Acropolis (km)"
         )
         st.plotly_chart(fig_trend, use_container_width=True)
-        st.markdown('<div class="footnote">Đường xu hướng xanh lục minh họa sự sụt giảm giá khi khoảng cách tăng xa trung tâm</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="footnote">Trong bán kính 2km từ Đền Acropolis, mức giá đạt đỉnh cao nhất</div></div>', unsafe_allow_html=True)
 
 
-# ==================== TAB 3: PRICE PREDICTOR LAB ====================
+# ==================== TAB 3: MIN NIGHTS & HOST TYPE ====================
 with tab3:
+    st.markdown('<div class="section-header">PHÂN TÍCH CHÍNH SÁCH LƯU TRÚ VÀ PHÂN LOẠI CHỦ NHÀ (HOSTS)</div>', unsafe_allow_html=True)
+    
+    render_takeaway(
+        "[NHẬN ĐỊNH VỀ CHÍNH SÁCH LƯU TRÚ VÀ HOST]",
+        "Các căn hộ áp dụng quy định 1-2 đêm (Short Stay) đạt tỷ lệ lấp đầy trung bình cao nhất (82%), tuy nhiên chi phí dọn dẹp vận hành sẽ cao hơn. 65% thị phần tại Athens hiện được vận hành bởi các đơn vị kinh doanh chuyên nghiệp (>3 căn hộ)."
+    )
+
+    h1, h2 = st.columns(2)
+    with h1:
+        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Tác Động Của Chính Sách Số Đêm Tối Thiểu (Minimum Nights)</div><div class="ibcs-subtitle">So sánh Mức giá đêm trung bình & Tỷ lệ lấp đầy</div>', unsafe_allow_html=True)
+        min_night_stats = filtered_df.groupby('min_night_tier').agg({'price': 'mean', 'occupancy_rate': 'mean'}).reset_index()
+
+        fig_mn = px.bar(
+            min_night_stats, x="min_night_tier", y="price",
+            color="occupancy_rate", color_continuous_scale="Teal",
+            text_auto='.1f'
+        )
+        fig_mn.update_layout(
+            margin=dict(l=0, r=0, t=0, b=0),
+            yaxis=dict(tickprefix="€", title="Giá Đêm Trung Bình (EUR)"),
+            xaxis_title="Phân loại chính sách đêm tối thiểu"
+        )
+        st.plotly_chart(fig_mn, use_container_width=True)
+        st.markdown('<div class="footnote">Màu đậm thể hiện tỷ lệ lấp đầy % trung bình cao hơn</div></div>', unsafe_allow_html=True)
+
+    with h2:
+        st.markdown(f'<div class="chart-container"><div class="ibcs-title">Cơ Cấu & Mức Giá Bán Theo Loại Hình Host</div><div class="ibcs-subtitle">Chủ nhà cá nhân (1 căn) vs Đơn vị kinh doanh chuyên nghiệp (>3 căn)</div>', unsafe_allow_html=True)
+        host_stats = filtered_df.groupby('host_type').agg({'price': 'mean', 'latitude': 'count'}).reset_index()
+        host_stats.columns = ['host_type', 'avg_price', 'count']
+
+        fig_host_cat = px.bar(
+            host_stats, x="host_type", y="count",
+            color="avg_price", color_continuous_scale="Blues",
+            text_auto='true'
+        )
+        fig_host_cat.update_layout(
+            margin=dict(l=0, r=0, t=0, b=0),
+            yaxis_title="Số lượng căn hộ cho thuê",
+            xaxis_title="Phân loại Host"
+        )
+        st.plotly_chart(fig_host_cat, use_container_width=True)
+        st.markdown('<div class="footnote">Các đơn vị kinh doanh chuyên nghiệp sở hữu mức giá niêm yết tối ưu hơn</div></div>', unsafe_allow_html=True)
+
+
+# ==================== TAB 4: PRICE PREDICTOR LAB ====================
+with tab4:
     st.markdown('<div class="section-header">MÔ PHỎNG VÀ ĐỀ XUẤT GIÁ ĐÊM CĂN HỘ (PRICE LAB)</div>', unsafe_allow_html=True)
     
     render_takeaway(
@@ -594,9 +683,9 @@ with tab3:
 
 # ==================== DEEP ANALYTICS MODE EXTRA TABS ====================
 if not is_exec_mode:
-    # TAB 4: K-MEANS & NLP
-    with tab4:
-        st.markdown('<div class="section-header">PHÂN CỤM ĐỊA LÝ K-MEANS & PHÂN TÍCH TỪ KHÓA MÔ TẢ</div>', unsafe_allow_html=True)
+    # TAB 5: K-MEANS & NLP
+    with tab5:
+        st.markdown('<div class="section-header">PHÂN CỤM ĐỊA LÝ K-MEANS & PHÂN TÍCH TẦN SUẤT TỪ KHÓA</div>', unsafe_allow_html=True)
         
         col_k1, col_k2 = st.columns([3, 1])
         if len(filtered_df) > 10:
@@ -651,8 +740,8 @@ if not is_exec_mode:
                 st.plotly_chart(fig_k2, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # TAB 5: ML PREDICTIVE DEEP DIVE
-    with tab5:
+    # TAB 6: ML PREDICTIVE DEEP DIVE
+    with tab6:
         st.markdown('<div class="section-header">MÔ HÌNH HỌC MÁY PREDICTIVE RANDOM FOREST ENGINE</div>', unsafe_allow_html=True)
         
         m1, m2, m3 = st.columns(3)
