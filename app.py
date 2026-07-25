@@ -469,8 +469,8 @@ st.markdown(f"""
     </div>
     <div class="report-meta">
         Dữ liệu: {len(filtered_df):,} căn hộ active<br>
-        Doanh thu TB: &euro;{filtered_df['est_monthly_revenue'].mean():,.0f}/tháng &nbsp;|&nbsp; 
-        Giá TB: &euro;{filtered_df['price'].mean():.1f}/đêm
+        Doanh thu TB: &euro;{filtered_df['est_monthly_revenue'].mean():.2f}/tháng &nbsp;|&nbsp; 
+        Giá TB: &euro;{filtered_df['price'].mean():.2f}/đêm
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -500,17 +500,17 @@ with tab1:
     
     render_takeaway(
         "[NHẬN ĐỊNH DOANH THU KHAI THÁC QUAN TRỌNG]",
-        "Khu vực Plaka, Koukaki và Syntagma mang lại doanh thu trung bình tháng cao nhất tại Athens (đạt từ 1.800 EUR - 2.500 EUR/tháng/căn hộ). Căn hộ cho thuê nguyên căn (Entire home/apt) chiếm 88% tổng doanh thu khai thác."
+        "Khu vực Plaka, Koukaki và Syntagma mang lại doanh thu trung bình tháng cao nhất tại Athens (đạt từ 1.800,00 EUR - 2.500,00 EUR/tháng/căn hộ). Căn hộ cho thuê nguyên căn (Entire home/apt) chiếm 88% tổng doanh thu khai thác."
     )
 
-    # Row 1: KPI Grid
+    # Row 1: KPI Grid (2 decimal places)
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     avg_m_rev = filtered_df['est_monthly_revenue'].mean()
     occ_rate = filtered_df['occupancy_rate'].mean()
     kpi1.metric("Tổng Căn Hộ Active", f"{len(filtered_df):,.0f}")
-    kpi2.metric("Giá Trung Bình Đêm (ADR)", f"€{filtered_df['price'].mean():.1f}")
-    kpi3.metric("Doanh Thu Ước Tính/Tháng", f"€{avg_m_rev:,.0f}")
-    kpi4.metric("Tỷ Lệ Lấp Đầy Trung Bình", f"{occ_rate:.1f}%")
+    kpi2.metric("Giá Trung Bình Đêm (ADR)", f"€{filtered_df['price'].mean():.2f}")
+    kpi3.metric("Doanh Thu Ước Tính/Tháng", f"€{avg_m_rev:.2f}")
+    kpi4.metric("Tỷ Lệ Lấp Đầy Trung Bình", f"{occ_rate:.2f}%")
 
     # Row 2: Charts 1 & 2
     c1, c2 = st.columns([3, 2])
@@ -522,7 +522,7 @@ with tab1:
         fig_rev = px.bar(
             top_10_rev, x="est_monthly_revenue", y="neighbourhood", orientation='h',
             color_discrete_sequence=[ACCENT_COLOR],
-            text_auto=',.0f'
+            text_auto='.2f'
         )
         fig_rev.update_layout(
             margin=dict(l=0, r=0, t=0, b=0),
@@ -542,7 +542,7 @@ with tab1:
         st.plotly_chart(fig_map, use_container_width=True)
         st.markdown('<div class="footnote">Tập trung dày đặc nhất tại trung tâm lịch sử Athens</div></div>', unsafe_allow_html=True)
 
-    # Row 3: Charts 3 & 4 (NEW ENHANCEMENTS!)
+    # Row 3: Charts 3 & 4
     c3, c4 = st.columns(2)
     with c3:
         st.markdown(f'<div class="chart-container"><div class="ibcs-title">Phân Bổ Căn Hộ & Doanh Thu Theo Phân Khúc Giá Đêm</div><div class="ibcs-subtitle">Số lượng căn hộ cho thuê theo từng khoảng giá (EUR)</div>', unsafe_allow_html=True)
@@ -573,7 +573,7 @@ with tab1:
         fig_room_bar = px.bar(
             room_stats, x="room_type", y="revenue_share",
             color="price", color_continuous_scale="Teal",
-            text_auto='.1f'
+            text_auto='.2f'
         )
         fig_room_bar.update_layout(
             margin=dict(l=0, r=0, t=0, b=0),
@@ -610,16 +610,24 @@ with tab2:
         med_price = neigh_matrix['price'].median()
         med_occ   = neigh_matrix['occupancy_rate'].median()
 
+        # Custom explicit hovertemplate with EXACTLY 2 decimal places!
         fig_matrix = px.scatter(
             neigh_matrix, x="price", y="occupancy_rate", size="est_monthly_revenue",
-            hover_name="neighbourhood",
-            hover_data={"price": ":.1f EUR", "occupancy_rate": ":.1f%", "est_monthly_revenue": ":.0f EUR", "count": True},
             color="est_monthly_revenue",
             color_continuous_scale="Blues", size_max=32
         )
         
-        fig_matrix.add_vline(x=med_price, line_dash="dash", line_color="#94A3B8", annotation_text="Trung vị Giá")
-        fig_matrix.add_hline(y=med_occ, line_dash="dash", line_color="#94A3B8", annotation_text="Trung vị Lấp đầy")
+        fig_matrix.update_traces(
+            hovertemplate="<b>%{hovertext}</b><br>" +
+                          "Giá đêm TB: €%{x:.2f}<br>" +
+                          "Tỷ lệ lấp đầy: %{y:.2f}%<br>" +
+                          "Doanh thu TB: €%{marker.size:.2f}/tháng<br>" +
+                          "<extra></extra>",
+            hovertext=neigh_matrix['neighbourhood']
+        )
+        
+        fig_matrix.add_vline(x=med_price, line_dash="dash", line_color="#94A3B8", annotation_text=f"Trung vị Giá (€{med_price:.2f})")
+        fig_matrix.add_hline(y=med_occ, line_dash="dash", line_color="#94A3B8", annotation_text=f"Trung vị Lấp đầy ({med_occ:.2f}%)")
         
         top_landmarks = ['EMPORIKO TRIGONO-PLAKA', 'KOUKAKI-MAKRYGIANNI', 'ZAPPEIO', 'AKROPOLI', 'KOLONAKI']
         for _, row in neigh_matrix.iterrows():
@@ -653,7 +661,7 @@ with tab2:
         fig_dist_bar = px.bar(
             dist_stats, x="price", y="dist_bin", orientation='h',
             color="occupancy_rate", color_continuous_scale="Blues",
-            text_auto='.1f'
+            text_auto='.2f'
         )
         fig_dist_bar.update_layout(
             margin=dict(l=0, r=0, t=0, b=0),
@@ -681,9 +689,9 @@ with tab2:
         <tr>
             <td><b>{row['Khu vực (Neighbourhood)']}</b></td>
             <td>{int(row['Số căn active']):,}</td>
-            <td>€{row['Giá TB (€/đêm)']:.1f}</td>
-            <td>{row['Tỷ lệ lấp đầy (%)']:.1f}%</td>
-            <td style="color:{ACCENT_COLOR}; font-weight:700;">€{row['Doanh thu TB (€/tháng)']:.0f}</td>
+            <td>€{row['Giá TB (€/đêm)']:.2f}</td>
+            <td>{row['Tỷ lệ lấp đầy (%)']:.2f}%</td>
+            <td style="color:{ACCENT_COLOR}; font-weight:700;">€{row['Doanh thu TB (€/tháng)']:.2f}</td>
         </tr>
         """
     st.markdown(f"""
@@ -719,7 +727,7 @@ with tab3:
         fig_mn = px.bar(
             min_night_stats, x="min_night_tier", y="price",
             color="occupancy_rate", color_continuous_scale="Teal",
-            text_auto='.1f'
+            text_auto='.2f'
         )
         fig_mn.update_layout(
             margin=dict(l=0, r=0, t=0, b=0),
@@ -763,7 +771,7 @@ with tab3:
     fig_host_top = px.bar(
         top_hosts_rev, x="total_monthly_rev", y="host_name", orientation='h',
         color="total_listings", color_continuous_scale="Blues",
-        text_auto=',.0f'
+        text_auto=',.2f'
     )
     fig_host_top.update_layout(
         margin=dict(l=0, r=0, t=0, b=0),
@@ -818,7 +826,7 @@ with tab4:
                 <div style="font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#94A3B8;">Mức Giá Niêm Yết Đêm Khuyến Nghị (ADR)</div>
                 <div style="font-family:'DM Mono',monospace; font-size:38px; font-weight:700; color:#FFFFFF; margin-top:4px;">&euro;{pred:.2f} / đêm</div>
                 <div style="font-size:11px; color:#CBD5E1; margin-top:4px;">
-                    Căn hộ: {inp_room} &middot; Khu vực: {inp_neigh} &middot; Cách trung tâm: {inp_dist} km
+                    Căn hộ: {inp_room} &middot; Khu vực: {inp_neigh} &middot; Cách trung tâm: {inp_dist:.2f} km
                 </div>
             </div>
             <div class="footnote" style="margin-top:8px;">
@@ -842,7 +850,7 @@ if not is_exec_mode:
                 st.markdown(f'<div class="chart-container"><div class="ibcs-title">Phân Cụm Vị Trí Thị Trường (K-Means Clustering)</div><div class="ibcs-subtitle">Gom nhóm dựa trên Tọa độ, Mức giá và Khoảng cách trung tâm</div>', unsafe_allow_html=True)
                 fig_cluster = px.scatter_mapbox(
                     df_cluster, lat="latitude", lon="longitude", color="Cluster",
-                    hover_data=['price', 'neighbourhood'],
+                    hover_data={'price': ':.2f', 'neighbourhood': True},
                     zoom=11, height=480, mapbox_style="carto-positron",
                     color_discrete_sequence=[ACCENT_COLOR, PRIMARY_COLOR, AMBER_COLOR, "#64748B"]
                 )
@@ -856,7 +864,7 @@ if not is_exec_mode:
                 cluster_stats.columns = ['Cụm', 'Giá TB (€)', 'Số lượng']
                 rows = ""
                 for _, r in cluster_stats.iterrows():
-                    rows += f"<tr><td>Cụm {r['Cụm']}</td><td>€{r['Giá TB (€)']:.1f}</td><td>{int(r['Số lượng'])}</td></tr>"
+                    rows += f"<tr><td>Cụm {r['Cụm']}</td><td>€{r['Giá TB (€)']:.2f}</td><td>{int(r['Số lượng'])}</td></tr>"
                 st.markdown(f"""
                 <table class="ibcs-table">
                     <thead><tr><th>Nhóm</th><th>Giá TB</th><th>Số phòng</th></tr></thead>
